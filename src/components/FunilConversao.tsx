@@ -181,6 +181,21 @@ function EtapaCard({
 }
 
 function ConexaoBadge({ conexao }: { conexao: ConexaoConfig }) {
+  if (conexao.label === 'fixo') {
+    return (
+      <div className="flex flex-col items-center justify-center px-1 flex-shrink-0">
+        <div className="hidden lg:flex flex-col items-center gap-1">
+          <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Quase todos</span>
+          <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">evoluem →</span>
+        </div>
+        <div className="lg:hidden flex flex-col items-center gap-1">
+          <span className="text-gray-300 text-lg">↓</span>
+          <span className="text-xs text-emerald-600 font-medium">Quase todos evoluem</span>
+        </div>
+      </div>
+    )
+  }
+
   if (conexao.taxa < 0) {
     return (
       <div className="flex flex-col items-center justify-center px-1 lg:py-0 py-1 flex-shrink-0">
@@ -315,7 +330,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: v.numero_orcamentos,
       cor: CORES.amber,
       icone: <FileText className="w-4 h-4" />,
-      meta: metas['numero_orcamentos'] ?? 0,
+      meta: 0,
     },
     {
       numero: 5,
@@ -348,9 +363,9 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       label: 'taxa',
     },
     {
-      taxa: m.primeiras_consultas > 0 ? (v.numero_orcamentos / m.primeiras_consultas) * 100 : -1,
-      benchmark: 70,
-      label: 'taxa',
+      taxa: 0,
+      benchmark: 0,
+      label: 'fixo',
     },
     {
       taxa: v.numero_orcamentos > 0 ? (v.total_contratos / v.numero_orcamentos) * 100 : -1,
