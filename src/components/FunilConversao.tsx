@@ -20,6 +20,10 @@ interface FunilConversaoProps {
   summary: SummaryResponse
 }
 
+const META_CONSULTAS = 150
+const META_CONTRATOS = 50
+const META_FATURAMENTO = 1_000_000
+
 interface Etapa {
   numero: number
   nome: string
@@ -33,7 +37,7 @@ interface Etapa {
     border: string
   }
   icone: React.ReactNode
-  metaKey?: string
+  meta: number
 }
 
 interface ConexaoConfig {
@@ -287,7 +291,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: m.clicaram_no_anuncio,
       cor: CORES.violet,
       icone: <MousePointer className="w-4 h-4" />,
-      metaKey: 'clicaram_no_anuncio',
+      meta: metas['clicaram_no_anuncio'] ?? 0,
     },
     {
       numero: 2,
@@ -295,7 +299,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: m.conversas_iniciadas,
       cor: CORES.blue,
       icone: <MessageCircle className="w-4 h-4" />,
-      metaKey: 'conversas_iniciadas',
+      meta: metas['conversas_iniciadas'] ?? 0,
     },
     {
       numero: 3,
@@ -303,7 +307,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: m.primeiras_consultas,
       cor: CORES.cyan,
       icone: <Calendar className="w-4 h-4" />,
-      metaKey: 'primeiras_consultas',
+      meta: META_CONSULTAS,
     },
     {
       numero: 4,
@@ -311,7 +315,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: v.numero_orcamentos,
       cor: CORES.amber,
       icone: <FileText className="w-4 h-4" />,
-      metaKey: 'numero_orcamentos',
+      meta: metas['numero_orcamentos'] ?? 0,
     },
     {
       numero: 5,
@@ -319,7 +323,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: v.total_contratos,
       cor: CORES.emerald,
       icone: <CheckCircle className="w-4 h-4" />,
-      metaKey: 'total_contratos',
+      meta: META_CONTRATOS,
     },
     {
       numero: 6,
@@ -328,7 +332,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       isMonetario: true,
       cor: CORES.green,
       icone: <DollarSign className="w-4 h-4" />,
-      metaKey: 'valor_total_fechado',
+      meta: META_FATURAMENTO,
     },
   ]
 
@@ -386,7 +390,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
             <EtapaCard
               etapa={etapa}
               periodoLabel={summary.periodo_label}
-              meta={etapa.metaKey ? (metas[etapa.metaKey] ?? 0) : 0}
+              meta={etapa.meta}
             />
             {idx < etapas.length - 1 && (
               <ConexaoBadge conexao={conexoes[idx]} />

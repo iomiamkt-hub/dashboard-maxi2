@@ -199,9 +199,12 @@ function BannerMeta({ summary }: { summary: SummaryResponse }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
       <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
-        <span className="text-sm font-semibold text-gray-700">
-          🎯 Meta do mês — {summary.periodo_label}
-        </span>
+        <p className="text-sm font-semibold text-gray-700">
+          🎯 150 consultas → 50 contratos → R$ 1 milhão
+        </p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Meta estratégica do mês — {summary.periodo_label}
+        </p>
       </div>
       <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
         <MetaBlock
