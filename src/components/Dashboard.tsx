@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/format'
 import TabelaMetricas from './TabelaMetricas'
 import TaxasConversao from './TaxasConversao'
 import GraficoEvolucao from './GraficoEvolucao'
+import FunilConversao from './FunilConversao'
 
 interface Props {
   summary: SummaryResponse
@@ -77,6 +78,11 @@ export default function Dashboard({ summary, meses, mesAtual }: Props) {
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
+
+        {/* Funil de conversão */}
+        <div className={`transition-opacity ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+          <FunilConversao summary={summaryAtual} />
+        </div>
 
         {/* Tabela de métricas */}
         <div className={`transition-opacity ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
