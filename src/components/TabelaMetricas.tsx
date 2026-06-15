@@ -23,6 +23,10 @@ interface MetricaConfig {
   }
 }
 
+const META_CONSULTAS = 150
+const META_CONTRATOS = 50
+const META_FATURAMENTO = 1_000_000
+
 const METRICAS: MetricaConfig[] = [
   // MARKETING
   {
@@ -80,6 +84,10 @@ const METRICAS: MetricaConfig[] = [
   { label: 'Avaliação Google', key: 'avaliacao_google', format: 'number', metaKey: 'avaliacao_google' },
 ]
 
+// Fundo alternado por índice de semana (0-based)
+const SEM_BG = ['', 'bg-slate-50', '', 'bg-slate-50'] as const
+const SEM_BG_HEADER = ['bg-gray-50', 'bg-slate-100', 'bg-gray-50', 'bg-slate-100'] as const
+
 function getFromSummary(summary: SummaryResponse, key: string): number | string {
   const all: Record<string, number | string> = {
     ...summary.marketing,
@@ -131,6 +139,94 @@ function MetaBadge({ total, meta }: { total: number | string; meta: number }) {
   )
 }
 
+function barColor(pct: number) {
+  if (pct >= 100) return 'bg-emerald-600'
+  if (pct >= 80) return 'bg-emerald-500'
+  if (pct >= 50) return 'bg-amber-400'
+  return 'bg-red-400'
+}
+
+function pctColor(pct: number) {
+  if (pct >= 80) return 'text-emerald-600'
+  if (pct >= 50) return 'text-amber-600'
+  return 'text-red-500'
+}
+
+interface MetaBlockProps {
+  label: string
+  valor: number
+  meta: number
+  formatType: FormatType
+}
+
+function MetaBlock({ label, valor, meta, formatType }: MetaBlockProps) {
+  const pct = Math.min((valor / meta) * 100, 100)
+  const atingiu = valor >= meta
+  const falta = meta - valor
+
+  const valorFormatado = formatType === 'money' ? formatValue(valor, 'money') : valor.toLocaleString('pt-BR')
+  const metaFormatada = formatType === 'money' ? formatValue(meta, 'money') : meta.toLocaleString('pt-BR')
+  const faltaFormatado = formatType === 'money' ? `Falta ${formatValue(falta, 'money')}` : `Faltam ${falta.toLocaleString('pt-BR')}`
+
+  return (
+    <div className="px-6 py-4 flex-1">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+      <div className="flex items-baseline gap-1.5 mb-2">
+        <span className="text-2xl font-bold text-gray-900">{valorFormatado}</span>
+        <span className="text-lg text-gray-400">/ {metaFormatada}</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+        <div
+          className={clsx('h-full rounded-full transition-all', barColor(pct))}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <span className={clsx('text-xs font-semibold', pctColor(pct))}>
+          {Math.round(pct)}%
+        </span>
+        {atingiu ? (
+          <span className="text-xs text-emerald-600 font-medium">✓ Meta atingida!</span>
+        ) : (
+          <span className="text-xs text-gray-500">{faltaFormatado}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BannerMeta({ summary }: { summary: SummaryResponse }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+      <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
+        <span className="text-sm font-semibold text-gray-700">
+          🎯 Meta do mês — {summary.periodo_label}
+        </span>
+      </div>
+      <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+        <MetaBlock
+          label="Consultas"
+          valor={summary.marketing.primeiras_consultas}
+          meta={META_CONSULTAS}
+          formatType="number"
+        />
+        <MetaBlock
+          label="Contratos"
+          valor={summary.vendas.total_contratos}
+          meta={META_CONTRATOS}
+          formatType="number"
+        />
+        <MetaBlock
+          label="Faturamento"
+          valor={summary.vendas.valor_total_fechado}
+          meta={META_FATURAMENTO}
+          formatType="money"
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function TabelaMetricas({ summary }: Props) {
   const semanas = summary.semanas ?? []
   const semanasExibidas = Array.from({ length: 4 }, (_, i) => semanas[i] ?? null)
@@ -138,108 +234,118 @@ export default function TabelaMetricas({ summary }: Props) {
   let currentSetorConfig: MetricaConfig['setor'] | null = null
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100">
-        <h2 className="font-semibold text-gray-800">
-          Métricas do Período — {summary.periodo_label}
-        </h2>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">
-                Setor
-              </th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Métrica
-              </th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">
-                Meta
-              </th>
-              {semanasExibidas.map((_, i) => (
-                <th
-                  key={i}
-                  className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24"
-                >
-                  {i + 1}ª Sem
+    <div className="space-y-0">
+      <BannerMeta summary={summary} />
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-800">
+            Métricas do Período — {summary.periodo_label}
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36 bg-gray-50">
+                  Setor
                 </th>
-              ))}
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider w-36 bg-gray-100">
-                Total Mês
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {METRICAS.map((metrica, idx) => {
-              const isFirstOfSetor = !!metrica.setor
-              if (isFirstOfSetor) currentSetorConfig = metrica.setor!
-
-              const total = getFromSummary(summary, metrica.key)
-              const meta = metrica.metaKey ? (summary.metas[metrica.metaKey] ?? 0) : 0
-
-              return (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  {/* Setor cell */}
-                  <td
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Métrica
+                </th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-24 bg-gray-50">
+                  Meta
+                </th>
+                {semanasExibidas.map((_, i) => (
+                  <th
+                    key={i}
                     className={clsx(
-                      'px-4 py-3 align-top border-l-4',
-                      isFirstOfSetor && currentSetorConfig
-                        ? currentSetorConfig.borderColor
-                        : 'border-transparent'
+                      'text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24',
+                      SEM_BG_HEADER[i]
                     )}
                   >
-                    {isFirstOfSetor && currentSetorConfig && (
-                      <div>
-                        <div className="font-semibold text-gray-800 text-xs">
-                          {currentSetorConfig.nome}
+                    {i + 1}ª Sem
+                  </th>
+                ))}
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider w-36 bg-gray-100 border-l-2 border-gray-200">
+                  Total Mês
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {METRICAS.map((metrica, idx) => {
+                const isFirstOfSetor = !!metrica.setor
+                if (isFirstOfSetor) currentSetorConfig = metrica.setor!
+
+                const total = getFromSummary(summary, metrica.key)
+                const meta = metrica.metaKey ? (summary.metas[metrica.metaKey] ?? 0) : 0
+
+                return (
+                  <tr key={idx} className="hover:brightness-[0.97] transition-all">
+                    {/* Setor cell */}
+                    <td
+                      className={clsx(
+                        'px-4 py-3 align-top border-l-4 bg-gray-50',
+                        isFirstOfSetor && currentSetorConfig
+                          ? currentSetorConfig.borderColor
+                          : 'border-transparent'
+                      )}
+                    >
+                      {isFirstOfSetor && currentSetorConfig && (
+                        <div>
+                          <div className="font-semibold text-gray-800 text-xs">
+                            {currentSetorConfig.nome}
+                          </div>
+                          <div className="text-gray-400 text-xs">
+                            ({currentSetorConfig.responsavel})
+                          </div>
                         </div>
-                        <div className="text-gray-400 text-xs">
-                          ({currentSetorConfig.responsavel})
-                        </div>
-                      </div>
-                    )}
-                  </td>
+                      )}
+                    </td>
 
-                  {/* Métrica label */}
-                  <td className="px-4 py-3 text-gray-700">{metrica.label}</td>
+                    {/* Métrica label */}
+                    <td className="px-4 py-3 text-gray-700">{metrica.label}</td>
 
-                  {/* Meta */}
-                  <td className="px-4 py-3 text-right">
-                    {meta && meta > 0 ? (
-                      <span className="text-gray-700">{formatValue(meta, metrica.format)}</span>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-
-                  {/* Semanas */}
-                  {semanasExibidas.map((semana, i) => (
-                    <td key={i} className="px-4 py-3 text-right text-gray-600">
-                      {semana ? (
-                        renderCell(
-                          getFromSemana(semana, metrica.key),
-                          metrica.format,
-                          metrica.special
-                        )
+                    {/* Meta */}
+                    <td className="px-4 py-3 text-right">
+                      {meta && meta > 0 ? (
+                        <span className="text-gray-400">{formatValue(meta, metrica.format)}</span>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
-                  ))}
 
-                  {/* Total */}
-                  <td className="px-4 py-3 text-right bg-gray-50 font-semibold text-gray-800">
-                    <span className="inline-flex items-center gap-1 flex-wrap justify-end">
-                      {renderCell(total, metrica.format, metrica.special)}
-                      {metrica.metaKey && <MetaBadge total={total} meta={meta} />}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    {/* Semanas com alternância de fundo */}
+                    {semanasExibidas.map((semana, i) => (
+                      <td
+                        key={i}
+                        className={clsx('px-4 py-3 text-right text-gray-600', SEM_BG[i])}
+                      >
+                        {semana ? (
+                          renderCell(
+                            getFromSemana(semana, metrica.key),
+                            metrica.format,
+                            metrica.special
+                          )
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                    ))}
+
+                    {/* Total */}
+                    <td className="px-4 py-3 text-right bg-gray-50 font-semibold text-gray-800 border-l-2 border-gray-200">
+                      <span className="inline-flex items-center gap-1 flex-wrap justify-end">
+                        {renderCell(total, metrica.format, metrica.special)}
+                        {metrica.metaKey && <MetaBadge total={total} meta={meta} />}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
