@@ -50,11 +50,11 @@ function calcTaxas(summary: SummaryResponse): Taxa[] {
       benchmark: 25,
     },
     {
-      label: 'Cliques → Contratos',
-      de: 'Cliques no anúncio',
+      label: 'Consultas → Contratos',
+      de: 'Primeiras consultas',
       para: 'Total contratos',
-      valor: m.clicaram_no_anuncio ? (v.total_contratos / m.clicaram_no_anuncio) * 100 : 0,
-      benchmark: 3,
+      valor: m.primeiras_consultas ? (v.total_contratos / m.primeiras_consultas) * 100 : 0,
+      benchmark: 33,
     },
   ]
 }
