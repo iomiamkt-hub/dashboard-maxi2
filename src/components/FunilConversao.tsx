@@ -330,7 +330,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
       valor: v.numero_orcamentos,
       cor: CORES.amber,
       icone: <FileText className="w-4 h-4" />,
-      meta: 0,
+      meta: META_CONSULTAS,
     },
     {
       numero: 5,
@@ -380,8 +380,8 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
   ]
 
   const taxaGeral =
-    m.clicaram_no_anuncio > 0
-      ? (v.total_contratos / m.clicaram_no_anuncio) * 100
+    m.primeiras_consultas > 0
+      ? (v.total_contratos / m.primeiras_consultas) * 100
       : 0
 
   const taxaPresencial =
@@ -449,13 +449,13 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
               <TrendingUp className="w-5 h-5 text-purple-600" />
               <span className="font-semibold text-gray-700 text-sm">Taxa Geral</span>
             </div>
-            <p className="text-xs text-gray-400 mb-1">Clique → Contrato</p>
+            <p className="text-xs text-gray-400 mb-1">Consulta → Contrato</p>
             <p className="text-3xl font-bold text-purple-700">
-              {m.clicaram_no_anuncio > 0 ? `${taxaGeral.toFixed(2)}%` : '—'}
+              {m.primeiras_consultas > 0 ? `${taxaGeral.toFixed(1)}%` : '—'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {v.total_contratos.toLocaleString('pt-BR')} contratos /{' '}
-              {m.clicaram_no_anuncio.toLocaleString('pt-BR')} cliques
+              {m.primeiras_consultas.toLocaleString('pt-BR')} consultas
             </p>
           </div>
         </div>

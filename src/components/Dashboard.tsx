@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { SummaryResponse, MesDisponivel } from '@/types'
 import { fetchSummary } from '@/lib/api'
 import { formatDate } from '@/lib/format'
@@ -18,15 +18,36 @@ interface Props {
 export default function Dashboard({ summary, meses, mesAtual }: Props) {
   const [mesSelecionado, setMesSelecionado] = useState(mesAtual)
   const [summaryAtual, setSummaryAtual] = useState(summary)
+  const [summaryMesAnterior, setSummaryMesAnterior] = useState<SummaryResponse | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Encontra o aba do mês anterior na lista de meses disponíveis
+  function getMesAnteriorAba(aba: string): string | null {
+    const idx = meses.findIndex((m) => m.aba === aba)
+    return idx > 0 ? meses[idx - 1].aba : null
+  }
+
+  // Carrega mês anterior ao inicializar
+  useEffect(() => {
+    const abaAnterior = getMesAnteriorAba(mesAtual)
+    if (abaAnterior) {
+      fetchSummary(abaAnterior).then(setSummaryMesAnterior).catch(() => null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleMesChange(aba: string) {
     if (aba === mesSelecionado) return
     setMesSelecionado(aba)
     setLoading(true)
     try {
-      const data = await fetchSummary(aba)
+      const abaAnterior = getMesAnteriorAba(aba)
+      const [data, anterior] = await Promise.all([
+        fetchSummary(aba),
+        abaAnterior ? fetchSummary(abaAnterior).catch(() => null) : Promise.resolve(null),
+      ])
       setSummaryAtual(data)
+      setSummaryMesAnterior(anterior)
     } catch (e) {
       console.error(e)
     } finally {
@@ -86,7 +107,7 @@ export default function Dashboard({ summary, meses, mesAtual }: Props) {
 
         {/* Tabela de métricas */}
         <div className={`transition-opacity ${loading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-          <TabelaMetricas summary={summaryAtual} />
+          <TabelaMetricas summary={summaryAtual} summaryMesAnterior={summaryMesAnterior} />
         </div>
 
         {/* Taxas de conversão */}

@@ -6,6 +6,7 @@ import { clsx } from 'clsx'
 
 interface Props {
   summary: SummaryResponse
+  summaryMesAnterior?: SummaryResponse | null
 }
 
 type FormatType = 'money' | 'percent' | 'number'
@@ -175,6 +176,25 @@ function TendenciaIndicador({ semanas, metricaKey }: { semanas: (Semana | null)[
   return <span className="text-xs text-red-400 block">↓ caindo</span>
 }
 
+function ChipComparativo({ atual, anterior, label }: { atual: number; anterior: number; label: string }) {
+  if (anterior === 0 || atual === 0) return null
+  const diff = ((atual - anterior) / anterior) * 100
+  if (Math.abs(diff) < 0.5) return null
+  const positivo = diff > 0
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded',
+        positivo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+      )}
+      title={label}
+    >
+      {positivo ? '↑' : '↓'}{Math.abs(diff).toFixed(0)}%
+      <span className="font-normal opacity-70">{label}</span>
+    </span>
+  )
+}
+
 function MetaBadge({ total, meta }: { total: number | string; meta: number }) {
   if (!meta || meta === 0) return null
   const num = toNum(total)
@@ -302,8 +322,9 @@ function LinhaMelhorSemana({
   )
 }
 
-export default function TabelaMetricas({ summary }: Props) {
+export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
   const semanas = summary.semanas ?? []
+  const semanasAnterior = summaryMesAnterior?.semanas ?? []
   const semanasExibidas = Array.from({ length: 4 }, (_, i) => semanas[i] ?? null)
   // Total de colunas: setor + métrica + 4 semanas + total = 7
   const TOTAL_COLS = 7
@@ -333,7 +354,7 @@ export default function TabelaMetricas({ summary }: Props) {
         {/* Setor */}
         <td
           className={clsx(
-            'px-3 py-3 align-top border-l-4 bg-gray-50 w-24',
+            'px-3 py-1.5 align-top border-l-4 bg-gray-50 w-24',
             isFirstOfSetor && currentSetorConfig
               ? currentSetorConfig.borderColor
               : 'border-transparent'
@@ -348,9 +369,9 @@ export default function TabelaMetricas({ summary }: Props) {
         </td>
 
         {/* Métrica label */}
-        <td className="px-3 py-3 text-gray-700">{metrica.label}</td>
+        <td className="px-3 py-1.5 text-gray-700 text-xs">{metrica.label}</td>
 
-        {/* Semanas com heatmap */}
+        {/* Semanas com heatmap + chips de comparativo */}
         {semanasExibidas.map((semana, i) => {
           const rawVal = semana ? getFromSemana(semana, metrica.key) : 0
           const numVal = toNum(rawVal)
@@ -358,21 +379,54 @@ export default function TabelaMetricas({ summary }: Props) {
             ? heatmapClasses(numVal, maxSem, !!metrica.negativa)
             : ''
 
+          // Semana anterior no mesmo mês (i-1)
+          const semanaAnteriorMes = i > 0 ? semanasExibidas[i - 1] : null
+          const valAnteriorMes = semanaAnteriorMes ? toNum(getFromSemana(semanaAnteriorMes, metrica.key)) : 0
+
+          // Mesma semana do mês anterior
+          const semanaAnteriorMesPassado = semanasAnterior[i] ?? null
+          const valMesPassado = semanaAnteriorMesPassado ? toNum(getFromSemana(semanaAnteriorMesPassado, metrica.key)) : 0
+          const labelMesPassado = summaryMesAnterior
+            ? summaryMesAnterior.semanas[i]?.label ?? 'mês ant.'
+            : 'mês ant.'
+
           return (
             <td
               key={i}
-              className={clsx('px-3 py-3 text-center w-24 transition-colors', heat)}
+              className={clsx('px-2 py-1.5 text-center w-24 transition-colors align-top', heat)}
             >
-              {semana
-                ? renderCell(rawVal, metrica.format, metrica.special)
-                : <span className="text-gray-300">—</span>
-              }
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-sm font-medium">
+                  {semana
+                    ? renderCell(rawVal, metrica.format, metrica.special)
+                    : <span className="text-gray-300">—</span>
+                  }
+                </span>
+                {!metrica.special && numVal > 0 && (
+                  <div className="flex flex-col items-center gap-0.5">
+                    {i > 0 && (
+                      <ChipComparativo
+                        atual={numVal}
+                        anterior={valAnteriorMes}
+                        label="vs ant."
+                      />
+                    )}
+                    {summaryMesAnterior && valMesPassado > 0 && (
+                      <ChipComparativo
+                        atual={numVal}
+                        anterior={valMesPassado}
+                        label={`vs ${labelMesPassado.replace('ª Semana', 'ª').toLowerCase()} ago`}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </td>
           )
         })}
 
         {/* Total */}
-        <td className="px-3 py-3 text-right bg-gray-50 font-semibold text-gray-800 border-l-2 border-gray-200 w-32">
+        <td className="px-3 py-1.5 text-right bg-gray-50 font-semibold text-gray-800 border-l-2 border-gray-200 w-32 align-top">
           <div className="inline-flex flex-col items-end gap-0.5">
             <div className="inline-flex items-center gap-1 flex-wrap justify-end">
               {renderCell(total, metrica.format, metrica.special)}
@@ -414,21 +468,21 @@ export default function TabelaMetricas({ summary }: Props) {
           <table className="w-full min-w-[800px] text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50">
+                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50">
                   Setor
                 </th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
                   Métrica
                 </th>
                 {semanasExibidas.map((_, i) => (
                   <th
                     key={i}
-                    className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50"
+                    className="text-center px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50"
                   >
                     {i + 1}ª Sem
                   </th>
                 ))}
-                <th className="text-right px-3 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider w-32 bg-gray-100 border-l-2 border-gray-200">
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider w-32 bg-gray-100 border-l-2 border-gray-200">
                   Total Mês
                 </th>
               </tr>
