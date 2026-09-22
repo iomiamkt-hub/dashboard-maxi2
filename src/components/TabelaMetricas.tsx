@@ -21,8 +21,9 @@ interface MetricaConfig {
   setor?: {
     nome: string
     responsavel: string
+    headerBg: string   // bg class for the sector header row
     borderColor: string
-    accentClass: string // Tailwind bg class for the sector header row
+    textColor: string
     melhorSemanaKeys?: Array<{ key: string; label: string; format: FormatType }>
   }
 }
@@ -36,7 +37,7 @@ const METRICAS: MetricaConfig[] = [
   {
     setor: {
       nome: 'MARKETING', responsavel: 'Joice',
-      borderColor: 'border-blue-500', accentClass: 'bg-blue-950',
+      headerBg: 'bg-blue-600', borderColor: 'border-blue-600', textColor: 'text-blue-700',
       melhorSemanaKeys: [{ key: 'primeiras_consultas', label: 'consultas', format: 'number' }],
     },
     label: 'Cliques no anúncio', key: 'clicaram_no_anuncio', format: 'number', metaKey: 'clicaram_no_anuncio',
@@ -50,7 +51,7 @@ const METRICAS: MetricaConfig[] = [
   {
     setor: {
       nome: 'VENDAS', responsavel: 'Patricia',
-      borderColor: 'border-emerald-500', accentClass: 'bg-emerald-950',
+      headerBg: 'bg-emerald-600', borderColor: 'border-emerald-600', textColor: 'text-emerald-700',
       melhorSemanaKeys: [
         { key: 'total_contratos', label: 'contratos', format: 'number' },
         { key: 'valor_total_fechado', label: 'faturamento', format: 'money' },
@@ -67,7 +68,10 @@ const METRICAS: MetricaConfig[] = [
   { label: 'Cirurgias fechadas', key: 'cirurgias_fechadas', format: 'number', special: 'cirurgias_fechadas' },
   // FINANCEIRO
   {
-    setor: { nome: 'FINANCEIRO', responsavel: 'Paula', borderColor: 'border-amber-500', accentClass: 'bg-amber-950' },
+    setor: {
+      nome: 'FINANCEIRO', responsavel: 'Paula',
+      headerBg: 'bg-amber-500', borderColor: 'border-amber-500', textColor: 'text-amber-700',
+    },
     label: 'Pgto. à vista', key: 'pagamento_avista', format: 'number',
   },
   { label: 'Pgto. até 6x', key: 'pagamento_ate6x', format: 'number' },
@@ -81,7 +85,10 @@ const METRICAS: MetricaConfig[] = [
   { label: 'Despesas fixas', key: 'despesas_fixas', format: 'money', negativa: true },
   // OPERACIONAL
   {
-    setor: { nome: 'OPERACIONAL', responsavel: 'Leticia', borderColor: 'border-purple-500', accentClass: 'bg-purple-950' },
+    setor: {
+      nome: 'OPERACIONAL', responsavel: 'Leticia',
+      headerBg: 'bg-purple-600', borderColor: 'border-purple-600', textColor: 'text-purple-700',
+    },
     label: 'Jornada paciente', key: 'jornada_paciente', format: 'number', metaKey: 'jornada_paciente', negativa: true,
   },
   { label: 'Satisfação (NPS)', key: 'satisfacao_nps', format: 'number', metaKey: 'satisfacao_nps' },
@@ -92,7 +99,6 @@ function buildSetorBlocos() {
   const blocos: Array<{ inicio: number; fim: number; config: MetricaConfig['setor'] }> = []
   let inicio = 0
   let config: MetricaConfig['setor'] | undefined
-
   METRICAS.forEach((m, i) => {
     if (m.setor) {
       if (config) blocos.push({ inicio, fim: i - 1, config })
@@ -108,10 +114,7 @@ const SETOR_BLOCOS = buildSetorBlocos()
 
 function getFromSummary(summary: SummaryResponse, key: string): number | string {
   const all: Record<string, number | string> = {
-    ...summary.marketing,
-    ...summary.vendas,
-    ...summary.financeiro,
-    ...summary.operacional,
+    ...summary.marketing, ...summary.vendas, ...summary.financeiro, ...summary.operacional,
   }
   return all[key] ?? 0
 }
@@ -125,40 +128,25 @@ function toNum(v: number | string): number {
   return isNaN(n) ? 0 : n
 }
 
-// semanaExiste=true: week has data, value=0 → show "0"
-// semanaExiste=false: week slot is empty → show "—"
-function renderCell(value: number | string, format: FormatType, semanaExiste: boolean, special?: string) {
+function formatCell(value: number | string, format: FormatType, semanaExiste: boolean, special?: string): string | null {
   if (special === 'cirurgias_fechadas') {
     const str = typeof value === 'string' ? value : String(value)
-    if (!str || str === '0') return <span className="text-gray-500">—</span>
-    const truncated = str.length > 60 ? str.slice(0, 60) + '...' : str
-    return <span title={str} className="text-xs text-gray-400 cursor-help">{truncated}</span>
+    return str && str !== '0' ? (str.length > 40 ? str.slice(0, 40) + '…' : str) : null
   }
-  if (!semanaExiste) return <span className="text-gray-600">—</span>
+  if (!semanaExiste) return null // "—"
   const num = toNum(value)
-  if (isNaN(num) || num === 0) return <span className="text-gray-500 font-medium">0</span>
-  return <span>{formatValue(num, format)}</span>
+  if (isNaN(num)) return null
+  if (num === 0) return '0'
+  return formatValue(num, format)
 }
 
-function renderTotal(value: number | string, format: FormatType, special?: string) {
-  if (special === 'cirurgias_fechadas') {
-    const str = typeof value === 'string' ? value : String(value)
-    if (!str || str === '0') return <span className="text-gray-500">—</span>
-    const truncated = str.length > 60 ? str.slice(0, 60) + '...' : str
-    return <span title={str} className="text-xs text-gray-400 cursor-help">{truncated}</span>
-  }
-  const num = toNum(value)
-  if (isNaN(num) || num === 0) return <span className="text-gray-600">—</span>
-  return <span>{formatValue(num, format)}</span>
-}
-
-function heatmapClasses(valor: number, maxVal: number, negativa: boolean): string {
+function heatmapClass(valor: number, maxVal: number, negativa: boolean): string {
   if (valor === 0 || maxVal === 0) return ''
   const pct = negativa ? 1 - valor / maxVal : valor / maxVal
-  if (pct >= 0.85) return 'bg-emerald-900/40 text-emerald-300'
-  if (pct >= 0.60) return 'bg-emerald-900/20 text-emerald-400'
-  if (pct >= 0.35) return 'text-gray-300'
-  return 'text-gray-500'
+  if (pct >= 0.85) return 'bg-emerald-100 text-emerald-800'
+  if (pct >= 0.60) return 'bg-emerald-50 text-emerald-700'
+  if (pct >= 0.35) return ''
+  return 'text-gray-400'
 }
 
 function TendenciaIndicador({ semanas, metricaKey }: { semanas: (Semana | null)[]; metricaKey: string }) {
@@ -166,11 +154,11 @@ function TendenciaIndicador({ semanas, metricaKey }: { semanas: (Semana | null)[
   const primeira = vals.find((v) => v > 0) ?? 0
   const ultima = [...vals].reverse().find((v) => v > 0) ?? 0
   if (primeira === 0 || ultima === primeira) return null
-  if (ultima > primeira) return <span className="text-xs text-emerald-400 block">↑ crescendo</span>
-  return <span className="text-xs text-red-400 block">↓ caindo</span>
+  if (ultima > primeira) return <span className="text-[10px] text-emerald-600 font-medium">↑ crescendo</span>
+  return <span className="text-[10px] text-red-500 font-medium">↓ caindo</span>
 }
 
-function ChipComparativo({ atual, anterior, label }: { atual: number; anterior: number; label: string }) {
+function Chip({ atual, anterior, label }: { atual: number; anterior: number; label: string }) {
   if (anterior === 0 || atual === 0) return null
   const diff = ((atual - anterior) / anterior) * 100
   if (Math.abs(diff) < 0.5) return null
@@ -178,76 +166,63 @@ function ChipComparativo({ atual, anterior, label }: { atual: number; anterior: 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded',
+        'inline-flex items-center gap-px text-[9px] font-bold px-1 py-px rounded whitespace-nowrap',
         positivo
-          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-          : 'bg-red-500/20 text-red-300 border border-red-500/30'
+          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+          : 'bg-red-100 text-red-600 border border-red-300'
       )}
       title={label}
     >
-      {positivo ? '↑' : '↓'}{Math.abs(diff).toFixed(0)}%
-      <span className="font-normal opacity-70">{label}</span>
+      {positivo ? '▲' : '▼'}{Math.abs(diff).toFixed(0)}%
+      <span className="font-normal opacity-60 ml-0.5">{label}</span>
     </span>
   )
 }
 
 function MetaBadge({ total, meta }: { total: number | string; meta: number }) {
-  if (!meta || meta === 0) return null
+  if (!meta) return null
   const num = toNum(total)
-  if (isNaN(num) || num === 0) return null
+  if (!num) return null
   if (num >= meta) {
-    return (
-      <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
-        ✓ meta
-      </span>
-    )
+    return <span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-px rounded-full font-bold whitespace-nowrap">✓ meta</span>
   }
   const pct = Math.round((num / meta) * 100)
-  return (
-    <span className="text-xs bg-red-500/20 text-red-300 border border-red-500/30 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
-      {pct}%
-    </span>
-  )
+  return <span className="text-[10px] bg-red-100 text-red-600 border border-red-300 px-1.5 py-px rounded-full font-bold whitespace-nowrap">{pct}%</span>
 }
 
 function barColor(pct: number) {
   if (pct >= 100) return 'bg-emerald-500'
-  if (pct >= 80) return 'bg-emerald-600'
-  if (pct >= 50) return 'bg-amber-500'
+  if (pct >= 80) return 'bg-emerald-500'
+  if (pct >= 50) return 'bg-amber-400'
   return 'bg-red-500'
-}
-
-function pctColor(pct: number) {
-  if (pct >= 80) return 'text-emerald-400'
-  if (pct >= 50) return 'text-amber-400'
-  return 'text-red-400'
 }
 
 function MetaBlock({ label, valor, meta, formatType }: { label: string; valor: number; meta: number; formatType: FormatType }) {
   const pct = Math.min((valor / meta) * 100, 100)
   const atingiu = valor >= meta
-  const falta = meta - valor
   const valorFormatado = formatType === 'money' ? formatValue(valor, 'money') : valor.toLocaleString('pt-BR')
   const metaFormatada = formatType === 'money' ? formatValue(meta, 'money') : meta.toLocaleString('pt-BR')
+  const falta = meta - valor
   const faltaFormatado = formatType === 'money' ? `Falta ${formatValue(falta, 'money')}` : `Faltam ${falta.toLocaleString('pt-BR')}`
 
   return (
     <div className="px-5 py-4 flex-1">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
       <div className="flex items-baseline gap-1.5 mb-2">
-        <span className="text-2xl font-bold text-white">{valorFormatado}</span>
-        <span className="text-sm text-gray-500">/ {metaFormatada}</span>
+        <span className="text-2xl font-bold text-gray-900">{valorFormatado}</span>
+        <span className="text-sm text-gray-400">/ {metaFormatada}</span>
       </div>
-      <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden mb-1.5">
+      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
         <div className={clsx('h-full rounded-full transition-all', barColor(pct))} style={{ width: `${pct}%` }} />
       </div>
       <div className="flex items-center justify-between">
-        <span className={clsx('text-xs font-bold', pctColor(pct))}>{Math.round(pct)}%</span>
-        {atingiu ? (
-          <span className="text-xs text-emerald-400 font-medium">✓ Meta atingida!</span>
-        ) : (
-          <span className="text-xs text-gray-500">{faltaFormatado}</span>
-        )}
+        <span className={clsx('text-xs font-bold', pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-500')}>
+          {Math.round(pct)}%
+        </span>
+        {atingiu
+          ? <span className="text-xs text-emerald-600 font-semibold">✓ Meta atingida!</span>
+          : <span className="text-xs text-gray-400">{faltaFormatado}</span>
+        }
       </div>
     </div>
   )
@@ -255,19 +230,15 @@ function MetaBlock({ label, valor, meta, formatType }: { label: string; valor: n
 
 function BannerMeta({ summary }: { summary: SummaryResponse }) {
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
-      <div className="px-5 py-3 border-b border-gray-700 flex items-center gap-3">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+      <div className="px-5 py-3 bg-gray-900 flex items-center gap-3">
         <span className="text-base">🎯</span>
         <div>
-          <p className="text-sm font-bold text-white tracking-wide">
-            150 consultas → 50 contratos → R$ 1 milhão
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Meta estratégica — {summary.periodo_label}
-          </p>
+          <p className="text-sm font-bold text-white">150 consultas → 50 contratos → R$ 1 milhão</p>
+          <p className="text-xs text-gray-400 mt-0.5">Meta estratégica — {summary.periodo_label}</p>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-700">
+      <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
         <MetaBlock label="Consultas" valor={summary.marketing.primeiras_consultas} meta={META_CONSULTAS} formatType="number" />
         <MetaBlock label="Contratos" valor={summary.vendas.total_contratos} meta={META_CONTRATOS} formatType="number" />
         <MetaBlock label="Faturamento" valor={summary.vendas.valor_total_fechado} meta={META_FATURAMENTO} formatType="money" />
@@ -276,20 +247,14 @@ function BannerMeta({ summary }: { summary: SummaryResponse }) {
   )
 }
 
-function LinhaMelhorSemana({
-  semanas,
-  keys,
-  colCount,
-}: {
+function LinhaMelhorSemana({ semanas, keys, colCount }: {
   semanas: (Semana | null)[]
   keys: NonNullable<MetricaConfig['setor']>['melhorSemanaKeys']
   colCount: number
 }) {
   if (!keys?.length) return null
-
   const partes = keys.map(({ key, label, format }) => {
-    let maxVal = 0
-    let maxIdx = -1
+    let maxVal = 0, maxIdx = -1
     semanas.forEach((s, i) => {
       if (!s) return
       const v = toNum(getFromSemana(s, key))
@@ -298,15 +263,10 @@ function LinhaMelhorSemana({
     if (maxIdx < 0) return null
     return `Melhor semana em ${label}: ${maxIdx + 1}ª Sem (${formatValue(maxVal, format)})`
   }).filter(Boolean)
-
   if (!partes.length) return null
-
   return (
     <tr>
-      <td
-        colSpan={colCount}
-        className="px-4 py-1 text-xs text-gray-500 italic bg-gray-800/50 border-t border-dashed border-gray-700"
-      >
+      <td colSpan={colCount} className="px-4 py-1 text-xs text-gray-400 italic bg-gray-50 border-t border-dashed border-gray-200">
         {partes.join(' · ')}
       </td>
     </tr>
@@ -319,7 +279,6 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
   const semanasExibidas = Array.from({ length: 4 }, (_, i) => semanas[i] ?? null)
   const TOTAL_COLS = 7
 
-  // Índice da semana mais recente com dados (para highlight azul)
   const semanaAtualIdx = (() => {
     for (let i = semanasExibidas.length - 1; i >= 0; i--) {
       if (semanasExibidas[i] !== null) return i
@@ -348,77 +307,73 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
         <tr key={`setor-${idx}`}>
           <td
             colSpan={TOTAL_COLS}
-            className={clsx(
-              'px-4 py-2 border-l-4',
-              currentSetorConfig.accentClass,
-              currentSetorConfig.borderColor
-            )}
+            className={clsx('px-4 py-1.5 border-l-4', currentSetorConfig.headerBg, currentSetorConfig.borderColor)}
           >
             <span className="text-xs font-bold text-white tracking-widest uppercase">
               {currentSetorConfig.nome}
             </span>
-            <span className="text-xs text-gray-400 ml-2">({currentSetorConfig.responsavel})</span>
+            <span className="text-xs text-white/60 ml-2">({currentSetorConfig.responsavel})</span>
           </td>
         </tr>
       )
     }
 
     rows.push(
-      <tr key={`row-${idx}`} className="hover:bg-gray-800/40 transition-colors">
-        {/* Setor accent border */}
-        <td className={clsx('w-1 border-l-4', currentSetorConfig?.borderColor ?? 'border-transparent')} />
-
+      <tr key={`row-${idx}`} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
         {/* Métrica label */}
-        <td className="px-3 py-1.5 text-gray-300 text-xs whitespace-nowrap">{metrica.label}</td>
+        <td className={clsx('px-3 py-1.5 text-gray-600 text-xs whitespace-nowrap border-l-4', currentSetorConfig?.borderColor ?? 'border-transparent')}>
+          {metrica.label}
+        </td>
 
-        {/* Semanas */}
+        {/* Semanas — número grande + chips inline */}
         {semanasExibidas.map((semana, i) => {
           const semanaExiste = semana !== null
           const rawVal = semana ? getFromSemana(semana, metrica.key) : 0
           const numVal = toNum(rawVal)
           const heat = semanaExiste && !metrica.special && numVal > 0
-            ? heatmapClasses(numVal, maxSem, !!metrica.negativa)
+            ? heatmapClass(numVal, maxSem, !!metrica.negativa)
             : ''
           const isAtual = i === semanaAtualIdx
 
-          // Semana anterior no mesmo mês (i-1)
           const semanaAnteriorMes = i > 0 ? semanasExibidas[i - 1] : null
           const valAnteriorMes = semanaAnteriorMes ? toNum(getFromSemana(semanaAnteriorMes, metrica.key)) : 0
-
-          // Mesma semana do mês anterior
           const semanaAnteriorMesPassado = semanasAnterior[i] ?? null
           const valMesPassado = semanaAnteriorMesPassado ? toNum(getFromSemana(semanaAnteriorMesPassado, metrica.key)) : 0
           const labelMesPassado = summaryMesAnterior
-            ? summaryMesAnterior.semanas[i]?.label ?? 'mês ant.'
+            ? (summaryMesAnterior.semanas[i]?.label ?? 'mês ant.').replace('ª Semana', 'ª').toLowerCase()
             : 'mês ant.'
+
+          const displayVal = formatCell(rawVal, metrica.format, semanaExiste, metrica.special)
 
           return (
             <td
               key={i}
               className={clsx(
-                'px-2 py-1.5 text-center w-24 align-top transition-colors',
-                isAtual
-                  ? 'bg-blue-950/60 border-x border-blue-800/40'
-                  : heat || ''
+                'px-2 py-1.5 text-sm',
+                isAtual ? 'bg-blue-50 border-x border-blue-200' : heat
               )}
             >
-              <div className="flex flex-col items-center gap-0.5">
-                <span className={clsx('text-sm font-semibold', isAtual && numVal > 0 && !heat ? 'text-blue-200' : '')}>
-                  {renderCell(rawVal, metrica.format, semanaExiste, metrica.special)}
-                </span>
+              {/* Number + chips all in one row */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {displayVal === null ? (
+                  <span className="text-gray-300 font-medium">—</span>
+                ) : displayVal === '0' ? (
+                  <span className="text-gray-400 font-semibold text-sm">0</span>
+                ) : (
+                  <span className={clsx(
+                    'font-bold text-sm tabular-nums',
+                    isAtual ? 'text-blue-700' : 'text-gray-800'
+                  )}>
+                    {displayVal}
+                  </span>
+                )}
                 {semanaExiste && !metrica.special && numVal > 0 && (
-                  <div className="flex flex-col items-center gap-0.5">
-                    {i > 0 && (
-                      <ChipComparativo atual={numVal} anterior={valAnteriorMes} label="vs ant." />
-                    )}
+                  <>
+                    {i > 0 && <Chip atual={numVal} anterior={valAnteriorMes} label="ant." />}
                     {summaryMesAnterior && valMesPassado > 0 && (
-                      <ChipComparativo
-                        atual={numVal}
-                        anterior={valMesPassado}
-                        label={`vs ${labelMesPassado.replace('ª Semana', 'ª').toLowerCase()} ago`}
-                      />
+                      <Chip atual={numVal} anterior={valMesPassado} label={labelMesPassado} />
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </td>
@@ -426,15 +381,23 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
         })}
 
         {/* Total */}
-        <td className="px-3 py-1.5 text-right bg-gray-800/60 font-semibold text-white border-l border-gray-700 w-32 align-top">
+        <td className="px-3 py-1.5 text-right bg-gray-50 border-l-2 border-gray-200 w-32">
           <div className="inline-flex flex-col items-end gap-0.5">
-            <div className="inline-flex items-center gap-1 flex-wrap justify-end">
-              {renderTotal(total, metrica.format, metrica.special)}
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              {(() => {
+                const num = toNum(total)
+                if (metrica.special) {
+                  const str = typeof total === 'string' ? total : String(total)
+                  return str && str !== '0'
+                    ? <span className="text-xs text-gray-600">{str.length > 40 ? str.slice(0, 40) + '…' : str}</span>
+                    : <span className="text-gray-300">—</span>
+                }
+                if (!num) return <span className="text-gray-300">—</span>
+                return <span className="font-bold text-gray-900 text-sm tabular-nums">{formatValue(num, metrica.format)}</span>
+              })()}
               {metrica.metaKey && <MetaBadge total={total} meta={meta} />}
             </div>
-            {!metrica.special && (
-              <TendenciaIndicador semanas={semanasExibidas} metricaKey={metrica.key} />
-            )}
+            {!metrica.special && <TendenciaIndicador semanas={semanasExibidas} metricaKey={metrica.key} />}
           </div>
         </td>
       </tr>
@@ -457,19 +420,16 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
     <div className="space-y-0">
       <BannerMeta summary={summary} />
 
-      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="font-bold text-white text-sm tracking-wide">
-            Métricas do Período — {summary.periodo_label}
-          </h2>
-          <span className="text-xs text-gray-500">{summary.semanas_com_dados} semanas com dados</span>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-bold text-gray-900 text-sm">Métricas do Período — {summary.periodo_label}</h2>
+          <span className="text-xs text-gray-400">{summary.semanas_com_dados} semanas com dados</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-sm">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="w-1" />
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <tr className="border-b-2 border-gray-200 bg-gray-50">
+                <th className="text-left px-3 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider">
                   Métrica
                 </th>
                 {semanasExibidas.map((_, i) => {
@@ -478,23 +438,23 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
                     <th
                       key={i}
                       className={clsx(
-                        'text-center px-3 py-2 text-xs font-semibold uppercase tracking-wider w-24',
+                        'text-left px-2 py-2 text-xs font-bold uppercase tracking-wider',
                         isAtual
-                          ? 'text-blue-300 bg-blue-950/60 border-x border-blue-800/40'
+                          ? 'text-blue-600 bg-blue-50 border-x border-blue-200'
                           : 'text-gray-500'
                       )}
                     >
                       {i + 1}ª Sem
-                      {isAtual && <span className="block text-[9px] font-normal text-blue-400 normal-case">atual</span>}
+                      {isAtual && <span className="block text-[9px] font-semibold text-blue-400 normal-case">atual</span>}
                     </th>
                   )
                 })}
-                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider w-32 bg-gray-800/60 border-l border-gray-700">
+                <th className="text-right px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider border-l-2 border-gray-200 w-32">
                   Total Mês
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">{rows}</tbody>
+            <tbody>{rows}</tbody>
           </table>
         </div>
       </div>
