@@ -17,12 +17,12 @@ interface MetricaConfig {
   format: FormatType
   metaKey?: string
   special?: 'cirurgias_fechadas'
-  negativa?: boolean // menor = melhor (ex: inadimplência, jornada)
+  negativa?: boolean
   setor?: {
     nome: string
     responsavel: string
     borderColor: string
-    // chaves de métricas relevantes para linha de "melhor semana"
+    accentClass: string // Tailwind bg class for the sector header row
     melhorSemanaKeys?: Array<{ key: string; label: string; format: FormatType }>
   }
 }
@@ -35,7 +35,8 @@ const METRICAS: MetricaConfig[] = [
   // MARKETING
   {
     setor: {
-      nome: 'MARKETING', responsavel: 'Joice', borderColor: 'border-blue-500',
+      nome: 'MARKETING', responsavel: 'Joice',
+      borderColor: 'border-blue-500', accentClass: 'bg-blue-950',
       melhorSemanaKeys: [{ key: 'primeiras_consultas', label: 'consultas', format: 'number' }],
     },
     label: 'Cliques no anúncio', key: 'clicaram_no_anuncio', format: 'number', metaKey: 'clicaram_no_anuncio',
@@ -48,7 +49,8 @@ const METRICAS: MetricaConfig[] = [
   // VENDAS
   {
     setor: {
-      nome: 'VENDAS', responsavel: 'Patricia', borderColor: 'border-emerald-500',
+      nome: 'VENDAS', responsavel: 'Patricia',
+      borderColor: 'border-emerald-500', accentClass: 'bg-emerald-950',
       melhorSemanaKeys: [
         { key: 'total_contratos', label: 'contratos', format: 'number' },
         { key: 'valor_total_fechado', label: 'faturamento', format: 'money' },
@@ -65,7 +67,7 @@ const METRICAS: MetricaConfig[] = [
   { label: 'Cirurgias fechadas', key: 'cirurgias_fechadas', format: 'number', special: 'cirurgias_fechadas' },
   // FINANCEIRO
   {
-    setor: { nome: 'FINANCEIRO', responsavel: 'Paula', borderColor: 'border-amber-500' },
+    setor: { nome: 'FINANCEIRO', responsavel: 'Paula', borderColor: 'border-amber-500', accentClass: 'bg-amber-950' },
     label: 'Pgto. à vista', key: 'pagamento_avista', format: 'number',
   },
   { label: 'Pgto. até 6x', key: 'pagamento_ate6x', format: 'number' },
@@ -79,26 +81,13 @@ const METRICAS: MetricaConfig[] = [
   { label: 'Despesas fixas', key: 'despesas_fixas', format: 'money', negativa: true },
   // OPERACIONAL
   {
-    setor: { nome: 'OPERACIONAL', responsavel: 'Leticia', borderColor: 'border-purple-500' },
+    setor: { nome: 'OPERACIONAL', responsavel: 'Leticia', borderColor: 'border-purple-500', accentClass: 'bg-purple-950' },
     label: 'Jornada paciente', key: 'jornada_paciente', format: 'number', metaKey: 'jornada_paciente', negativa: true,
   },
   { label: 'Satisfação (NPS)', key: 'satisfacao_nps', format: 'number', metaKey: 'satisfacao_nps' },
   { label: 'Avaliação Google', key: 'avaliacao_google', format: 'number', metaKey: 'avaliacao_google' },
 ]
 
-// Índices onde começa cada setor (para saber onde inserir linha de melhor semana)
-const SETOR_FIM_INDICES = (() => {
-  const result: number[] = []
-  let pendingSetor = false
-  for (let i = 0; i < METRICAS.length; i++) {
-    if (METRICAS[i].setor && i > 0) result.push(i - 1)
-    if (METRICAS[i].setor) pendingSetor = true
-  }
-  if (pendingSetor) result.push(METRICAS.length - 1)
-  return result
-})()
-
-// Retorna o índice (0-based) da última linha de cada bloco de setor
 function buildSetorBlocos() {
   const blocos: Array<{ inicio: number; fim: number; config: MetricaConfig['setor'] }> = []
   let inicio = 0
@@ -136,35 +125,40 @@ function toNum(v: number | string): number {
   return isNaN(n) ? 0 : n
 }
 
-function renderCell(value: number | string, format: FormatType, special?: string) {
+// semanaExiste=true: week has data, value=0 → show "0"
+// semanaExiste=false: week slot is empty → show "—"
+function renderCell(value: number | string, format: FormatType, semanaExiste: boolean, special?: string) {
   if (special === 'cirurgias_fechadas') {
     const str = typeof value === 'string' ? value : String(value)
-    if (!str || str === '0') return <span className="text-gray-300">—</span>
+    if (!str || str === '0') return <span className="text-gray-500">—</span>
     const truncated = str.length > 60 ? str.slice(0, 60) + '...' : str
-    return (
-      <span title={str} className="text-xs text-gray-600 cursor-help">
-        {truncated}
-      </span>
-    )
+    return <span title={str} className="text-xs text-gray-400 cursor-help">{truncated}</span>
   }
+  if (!semanaExiste) return <span className="text-gray-600">—</span>
   const num = toNum(value)
-  if (value === '' || value === null || value === undefined || isNaN(num) || num === 0) {
-    return <span className="text-gray-300">—</span>
-  }
+  if (isNaN(num) || num === 0) return <span className="text-gray-500 font-medium">0</span>
   return <span>{formatValue(num, format)}</span>
 }
 
-function heatmapClasses(
-  valor: number,
-  maxVal: number,
-  negativa: boolean,
-): string {
+function renderTotal(value: number | string, format: FormatType, special?: string) {
+  if (special === 'cirurgias_fechadas') {
+    const str = typeof value === 'string' ? value : String(value)
+    if (!str || str === '0') return <span className="text-gray-500">—</span>
+    const truncated = str.length > 60 ? str.slice(0, 60) + '...' : str
+    return <span title={str} className="text-xs text-gray-400 cursor-help">{truncated}</span>
+  }
+  const num = toNum(value)
+  if (isNaN(num) || num === 0) return <span className="text-gray-600">—</span>
+  return <span>{formatValue(num, format)}</span>
+}
+
+function heatmapClasses(valor: number, maxVal: number, negativa: boolean): string {
   if (valor === 0 || maxVal === 0) return ''
   const pct = negativa ? 1 - valor / maxVal : valor / maxVal
-  if (pct >= 0.85) return 'bg-emerald-100 text-emerald-900'
-  if (pct >= 0.60) return 'bg-emerald-50 text-emerald-800'
-  if (pct >= 0.35) return 'bg-gray-50 text-gray-700'
-  return 'text-gray-400'
+  if (pct >= 0.85) return 'bg-emerald-900/40 text-emerald-300'
+  if (pct >= 0.60) return 'bg-emerald-900/20 text-emerald-400'
+  if (pct >= 0.35) return 'text-gray-300'
+  return 'text-gray-500'
 }
 
 function TendenciaIndicador({ semanas, metricaKey }: { semanas: (Semana | null)[]; metricaKey: string }) {
@@ -172,7 +166,7 @@ function TendenciaIndicador({ semanas, metricaKey }: { semanas: (Semana | null)[
   const primeira = vals.find((v) => v > 0) ?? 0
   const ultima = [...vals].reverse().find((v) => v > 0) ?? 0
   if (primeira === 0 || ultima === primeira) return null
-  if (ultima > primeira) return <span className="text-xs text-emerald-500 block">↑ crescendo</span>
+  if (ultima > primeira) return <span className="text-xs text-emerald-400 block">↑ crescendo</span>
   return <span className="text-xs text-red-400 block">↓ caindo</span>
 }
 
@@ -184,8 +178,10 @@ function ChipComparativo({ atual, anterior, label }: { atual: number; anterior: 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded',
-        positivo ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+        'inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded',
+        positivo
+          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          : 'bg-red-500/20 text-red-300 border border-red-500/30'
       )}
       title={label}
     >
@@ -201,62 +197,54 @@ function MetaBadge({ total, meta }: { total: number | string; meta: number }) {
   if (isNaN(num) || num === 0) return null
   if (num >= meta) {
     return (
-      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
+      <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
         ✓ meta
       </span>
     )
   }
   const pct = Math.round((num / meta) * 100)
   return (
-    <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
-      {pct}% da meta
+    <span className="text-xs bg-red-500/20 text-red-300 border border-red-500/30 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
+      {pct}%
     </span>
   )
 }
 
 function barColor(pct: number) {
-  if (pct >= 100) return 'bg-emerald-600'
-  if (pct >= 80) return 'bg-emerald-500'
-  if (pct >= 50) return 'bg-amber-400'
-  return 'bg-red-400'
+  if (pct >= 100) return 'bg-emerald-500'
+  if (pct >= 80) return 'bg-emerald-600'
+  if (pct >= 50) return 'bg-amber-500'
+  return 'bg-red-500'
 }
 
 function pctColor(pct: number) {
-  if (pct >= 80) return 'text-emerald-600'
-  if (pct >= 50) return 'text-amber-600'
-  return 'text-red-500'
+  if (pct >= 80) return 'text-emerald-400'
+  if (pct >= 50) return 'text-amber-400'
+  return 'text-red-400'
 }
 
-interface MetaBlockProps {
-  label: string
-  valor: number
-  meta: number
-  formatType: FormatType
-}
-
-function MetaBlock({ label, valor, meta, formatType }: MetaBlockProps) {
+function MetaBlock({ label, valor, meta, formatType }: { label: string; valor: number; meta: number; formatType: FormatType }) {
   const pct = Math.min((valor / meta) * 100, 100)
   const atingiu = valor >= meta
   const falta = meta - valor
-
   const valorFormatado = formatType === 'money' ? formatValue(valor, 'money') : valor.toLocaleString('pt-BR')
   const metaFormatada = formatType === 'money' ? formatValue(meta, 'money') : meta.toLocaleString('pt-BR')
   const faltaFormatado = formatType === 'money' ? `Falta ${formatValue(falta, 'money')}` : `Faltam ${falta.toLocaleString('pt-BR')}`
 
   return (
-    <div className="px-6 py-4 flex-1">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+    <div className="px-5 py-4 flex-1">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
       <div className="flex items-baseline gap-1.5 mb-2">
-        <span className="text-2xl font-bold text-gray-900">{valorFormatado}</span>
-        <span className="text-lg text-gray-400">/ {metaFormatada}</span>
+        <span className="text-2xl font-bold text-white">{valorFormatado}</span>
+        <span className="text-sm text-gray-500">/ {metaFormatada}</span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1.5">
+      <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden mb-1.5">
         <div className={clsx('h-full rounded-full transition-all', barColor(pct))} style={{ width: `${pct}%` }} />
       </div>
       <div className="flex items-center justify-between">
-        <span className={clsx('text-xs font-semibold', pctColor(pct))}>{Math.round(pct)}%</span>
+        <span className={clsx('text-xs font-bold', pctColor(pct))}>{Math.round(pct)}%</span>
         {atingiu ? (
-          <span className="text-xs text-emerald-600 font-medium">✓ Meta atingida!</span>
+          <span className="text-xs text-emerald-400 font-medium">✓ Meta atingida!</span>
         ) : (
           <span className="text-xs text-gray-500">{faltaFormatado}</span>
         )}
@@ -267,16 +255,19 @@ function MetaBlock({ label, valor, meta, formatType }: MetaBlockProps) {
 
 function BannerMeta({ summary }: { summary: SummaryResponse }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
-      <div className="px-6 py-3 bg-gray-50 border-b border-gray-100">
-        <p className="text-sm font-semibold text-gray-700">
-          🎯 150 consultas → 50 contratos → R$ 1 milhão
-        </p>
-        <p className="text-xs text-gray-400 mt-0.5">
-          Meta estratégica do mês — {summary.periodo_label}
-        </p>
+    <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-4">
+      <div className="px-5 py-3 border-b border-gray-700 flex items-center gap-3">
+        <span className="text-base">🎯</span>
+        <div>
+          <p className="text-sm font-bold text-white tracking-wide">
+            150 consultas → 50 contratos → R$ 1 milhão
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Meta estratégica — {summary.periodo_label}
+          </p>
+        </div>
       </div>
-      <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+      <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-700">
         <MetaBlock label="Consultas" valor={summary.marketing.primeiras_consultas} meta={META_CONSULTAS} formatType="number" />
         <MetaBlock label="Contratos" valor={summary.vendas.total_contratos} meta={META_CONTRATOS} formatType="number" />
         <MetaBlock label="Faturamento" valor={summary.vendas.valor_total_fechado} meta={META_FATURAMENTO} formatType="money" />
@@ -314,7 +305,7 @@ function LinhaMelhorSemana({
     <tr>
       <td
         colSpan={colCount}
-        className="px-4 py-1 text-xs text-gray-400 italic bg-gray-50 border-t border-dashed border-gray-200"
+        className="px-4 py-1 text-xs text-gray-500 italic bg-gray-800/50 border-t border-dashed border-gray-700"
       >
         {partes.join(' · ')}
       </td>
@@ -326,19 +317,21 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
   const semanas = summary.semanas ?? []
   const semanasAnterior = summaryMesAnterior?.semanas ?? []
   const semanasExibidas = Array.from({ length: 4 }, (_, i) => semanas[i] ?? null)
-  // Total de colunas: setor + métrica + 4 semanas + total = 7
   const TOTAL_COLS = 7
 
-  // Pre-compute max values per metric across semanas (for heatmap)
+  // Índice da semana mais recente com dados (para highlight azul)
+  const semanaAtualIdx = (() => {
+    for (let i = semanasExibidas.length - 1; i >= 0; i--) {
+      if (semanasExibidas[i] !== null) return i
+    }
+    return -1
+  })()
+
   function getMaxValorSemanas(key: string): number {
-    return Math.max(
-      0,
-      ...semanasExibidas.map((s) => (s ? toNum(getFromSemana(s, key)) : 0))
-    )
+    return Math.max(0, ...semanasExibidas.map((s) => (s ? toNum(getFromSemana(s, key)) : 0)))
   }
 
   let currentSetorConfig: MetricaConfig['setor'] | null = null
-
   const rows: React.ReactNode[] = []
 
   METRICAS.forEach((metrica, idx) => {
@@ -349,35 +342,44 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
     const meta = metrica.metaKey ? (summary.metas[metrica.metaKey] ?? 0) : 0
     const maxSem = metrica.special ? 0 : getMaxValorSemanas(metrica.key)
 
+    // Sector header row
+    if (isFirstOfSetor && currentSetorConfig) {
+      rows.push(
+        <tr key={`setor-${idx}`}>
+          <td
+            colSpan={TOTAL_COLS}
+            className={clsx(
+              'px-4 py-2 border-l-4',
+              currentSetorConfig.accentClass,
+              currentSetorConfig.borderColor
+            )}
+          >
+            <span className="text-xs font-bold text-white tracking-widest uppercase">
+              {currentSetorConfig.nome}
+            </span>
+            <span className="text-xs text-gray-400 ml-2">({currentSetorConfig.responsavel})</span>
+          </td>
+        </tr>
+      )
+    }
+
     rows.push(
-      <tr key={`row-${idx}`} className="hover:brightness-[0.97] transition-all">
-        {/* Setor */}
-        <td
-          className={clsx(
-            'px-3 py-1.5 align-top border-l-4 bg-gray-50 w-24',
-            isFirstOfSetor && currentSetorConfig
-              ? currentSetorConfig.borderColor
-              : 'border-transparent'
-          )}
-        >
-          {isFirstOfSetor && currentSetorConfig && (
-            <div>
-              <div className="font-semibold text-gray-800 text-xs">{currentSetorConfig.nome}</div>
-              <div className="text-gray-400 text-xs">({currentSetorConfig.responsavel})</div>
-            </div>
-          )}
-        </td>
+      <tr key={`row-${idx}`} className="hover:bg-gray-800/40 transition-colors">
+        {/* Setor accent border */}
+        <td className={clsx('w-1 border-l-4', currentSetorConfig?.borderColor ?? 'border-transparent')} />
 
         {/* Métrica label */}
-        <td className="px-3 py-1.5 text-gray-700 text-xs">{metrica.label}</td>
+        <td className="px-3 py-1.5 text-gray-300 text-xs whitespace-nowrap">{metrica.label}</td>
 
-        {/* Semanas com heatmap + chips de comparativo */}
+        {/* Semanas */}
         {semanasExibidas.map((semana, i) => {
+          const semanaExiste = semana !== null
           const rawVal = semana ? getFromSemana(semana, metrica.key) : 0
           const numVal = toNum(rawVal)
-          const heat = !metrica.special && numVal > 0
+          const heat = semanaExiste && !metrica.special && numVal > 0
             ? heatmapClasses(numVal, maxSem, !!metrica.negativa)
             : ''
+          const isAtual = i === semanaAtualIdx
 
           // Semana anterior no mesmo mês (i-1)
           const semanaAnteriorMes = i > 0 ? semanasExibidas[i - 1] : null
@@ -393,23 +395,21 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
           return (
             <td
               key={i}
-              className={clsx('px-2 py-1.5 text-center w-24 transition-colors align-top', heat)}
+              className={clsx(
+                'px-2 py-1.5 text-center w-24 align-top transition-colors',
+                isAtual
+                  ? 'bg-blue-950/60 border-x border-blue-800/40'
+                  : heat || ''
+              )}
             >
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-sm font-medium">
-                  {semana
-                    ? renderCell(rawVal, metrica.format, metrica.special)
-                    : <span className="text-gray-300">—</span>
-                  }
+                <span className={clsx('text-sm font-semibold', isAtual && numVal > 0 && !heat ? 'text-blue-200' : '')}>
+                  {renderCell(rawVal, metrica.format, semanaExiste, metrica.special)}
                 </span>
-                {!metrica.special && numVal > 0 && (
+                {semanaExiste && !metrica.special && numVal > 0 && (
                   <div className="flex flex-col items-center gap-0.5">
                     {i > 0 && (
-                      <ChipComparativo
-                        atual={numVal}
-                        anterior={valAnteriorMes}
-                        label="vs ant."
-                      />
+                      <ChipComparativo atual={numVal} anterior={valAnteriorMes} label="vs ant." />
                     )}
                     {summaryMesAnterior && valMesPassado > 0 && (
                       <ChipComparativo
@@ -426,10 +426,10 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
         })}
 
         {/* Total */}
-        <td className="px-3 py-1.5 text-right bg-gray-50 font-semibold text-gray-800 border-l-2 border-gray-200 w-32 align-top">
+        <td className="px-3 py-1.5 text-right bg-gray-800/60 font-semibold text-white border-l border-gray-700 w-32 align-top">
           <div className="inline-flex flex-col items-end gap-0.5">
             <div className="inline-flex items-center gap-1 flex-wrap justify-end">
-              {renderCell(total, metrica.format, metrica.special)}
+              {renderTotal(total, metrica.format, metrica.special)}
               {metrica.metaKey && <MetaBadge total={total} meta={meta} />}
             </div>
             {!metrica.special && (
@@ -440,7 +440,6 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
       </tr>
     )
 
-    // Após a última linha de cada bloco de setor, inserir linha de melhor semana
     const bloco = SETOR_BLOCOS.find((b) => b.fim === idx)
     if (bloco?.config?.melhorSemanaKeys) {
       rows.push(
@@ -458,36 +457,44 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
     <div className="space-y-0">
       <BannerMeta summary={summary} />
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="font-bold text-white text-sm tracking-wide">
             Métricas do Período — {summary.periodo_label}
           </h2>
+          <span className="text-xs text-gray-500">{summary.semanas_com_dados} semanas com dados</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-sm">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50">
-                  Setor
-                </th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+              <tr className="border-b border-gray-700">
+                <th className="w-1" />
+                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   Métrica
                 </th>
-                {semanasExibidas.map((_, i) => (
-                  <th
-                    key={i}
-                    className="text-center px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24 bg-gray-50"
-                  >
-                    {i + 1}ª Sem
-                  </th>
-                ))}
-                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider w-32 bg-gray-100 border-l-2 border-gray-200">
+                {semanasExibidas.map((_, i) => {
+                  const isAtual = i === semanaAtualIdx
+                  return (
+                    <th
+                      key={i}
+                      className={clsx(
+                        'text-center px-3 py-2 text-xs font-semibold uppercase tracking-wider w-24',
+                        isAtual
+                          ? 'text-blue-300 bg-blue-950/60 border-x border-blue-800/40'
+                          : 'text-gray-500'
+                      )}
+                    >
+                      {i + 1}ª Sem
+                      {isAtual && <span className="block text-[9px] font-normal text-blue-400 normal-case">atual</span>}
+                    </th>
+                  )
+                })}
+                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider w-32 bg-gray-800/60 border-l border-gray-700">
                   Total Mês
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">{rows}</tbody>
+            <tbody className="divide-y divide-gray-800">{rows}</tbody>
           </table>
         </div>
       </div>
