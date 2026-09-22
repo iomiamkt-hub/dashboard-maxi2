@@ -129,7 +129,14 @@ function Chip({ atual, anterior, label, positiveIsGood = true }: {
 }) {
   if (anterior === 0 || atual === 0) return null
   const diff = ((atual - anterior) / anterior) * 100
-  if (Math.abs(diff) < 0.5) return null
+  // Estável: diferença < 0.5%
+  if (Math.abs(diff) < 0.5) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-px rounded border whitespace-nowrap flex-shrink-0 bg-amber-50 text-amber-700 border-amber-300">
+        = <span className="font-normal opacity-60">{label}</span>
+      </span>
+    )
+  }
   const up = diff > 0; const good = positiveIsGood ? up : !up
   return (
     <span className={clsx(
@@ -300,10 +307,7 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
           const valMesPassado = semMesPassado ? toNum(getFromSemana(semMesPassado, metrica.key)) : 0
 
           // Rótulos
-          const nUltimaSem = semanasAnterior.filter(s => s != null).length
-          const labelUltimaSem = `vs ${nUltimaSem}ª/${mesAnt}`
           const labelMesPassado = `vs ${i + 1}ª/${mesAnt}`
-          const labelSemAnt = `vs Sem ${i}`
 
           // Leve heatmap no fundo
           const heatBg = (() => {
@@ -334,15 +338,14 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
                 )}
                 {semanaExiste && !metrica.special && numVal > 0 && (
                   <>
-                    {/* Sem 1: vs última semana do mês anterior */}
+                    {/* Chip 1: vs sem/ant — semana imediatamente anterior (mesmo mês ou última do mês ant) */}
                     {i === 0 && ultimaSemAnt && (
-                      <Chip atual={numVal} anterior={valUltimaSemAnt} label={labelUltimaSem} positiveIsGood={!metrica.negativa} />
+                      <Chip atual={numVal} anterior={valUltimaSemAnt} label="vs sem/ant" positiveIsGood={!metrica.negativa} />
                     )}
-                    {/* Sem 2+: vs semana anterior do mesmo mês */}
                     {i > 0 && (
-                      <Chip atual={numVal} anterior={valAnteriorMes} label={labelSemAnt} positiveIsGood={!metrica.negativa} />
+                      <Chip atual={numVal} anterior={valAnteriorMes} label="vs sem/ant" positiveIsGood={!metrica.negativa} />
                     )}
-                    {/* Todas: vs mesma semana do mês anterior */}
+                    {/* Chip 2: vs Xª/mes — mesma semana do mês anterior */}
                     {summaryMesAnterior && valMesPassado > 0 && (
                       <Chip atual={numVal} anterior={valMesPassado} label={labelMesPassado} positiveIsGood={!metrica.negativa} />
                     )}
