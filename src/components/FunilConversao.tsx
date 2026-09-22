@@ -223,14 +223,6 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
     },
   ]
 
-  const conexoes: ConexaoConfig[] = [
-    { taxa: m.clicaram_no_anuncio > 0 ? (m.conversas_iniciadas / m.clicaram_no_anuncio) * 100 : -1, benchmark: 15, label: 'taxa' },
-    { taxa: m.conversas_iniciadas > 0 ? (m.primeiras_consultas / m.conversas_iniciadas) * 100 : -1, benchmark: 8, label: 'taxa' },
-    { taxa: 0, benchmark: 0, label: 'fixo' },
-    { taxa: v.numero_orcamentos > 0 ? (v.total_contratos / v.numero_orcamentos) * 100 : -1, benchmark: 25, label: 'taxa' },
-    { taxa: v.total_contratos > 0 ? v.valor_total_fechado / v.total_contratos / 1000 : -1, benchmark: 0, label: 'ticket' },
-  ]
-
   const taxaGeral = m.primeiras_consultas > 0 ? (v.total_contratos / m.primeiras_consultas) * 100 : 0
   const taxaPresencial = m.consultas_presenciais > 0 ? (v.contratos_presencial / m.consultas_presenciais) * 100 : 0
   const taxaOnline = m.consultas_online > 0 ? (v.contratos_online / m.consultas_online) * 100 : 0
@@ -239,12 +231,9 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <h2 className="font-bold text-gray-900">Funil de Conversão — {summary.periodo_label}</h2>
 
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-start gap-0">
-        {etapas.map((etapa, idx) => (
-          <div key={etapa.numero} className="flex flex-col lg:flex-row items-center flex-1 min-w-0">
-            <EtapaCard etapa={etapa} periodoLabel={summary.periodo_label} meta={etapa.meta} />
-            {idx < etapas.length - 1 && <ConexaoBadge conexao={conexoes[idx]} />}
-          </div>
+      <div className="flex flex-col lg:flex-row gap-3">
+        {etapas.map((etapa) => (
+          <EtapaCard key={etapa.numero} etapa={etapa} periodoLabel={summary.periodo_label} meta={etapa.meta} />
         ))}
       </div>
 
