@@ -197,8 +197,42 @@ export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
   return json as SummaryResponse
 }
 
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+function gerarMesesFallback(): MesesResponse {
+  const agora = new Date()
+  const anoAtual = agora.getFullYear()
+  const mesAtual = agora.getMonth() // 0-indexed
+  const meses = []
+  for (let m = 0; m <= mesAtual; m++) {
+    const nome = MESES_PT[m]
+    const abrev = MES_ABREV[nome]
+    meses.push({
+      aba: `${abrev}${anoAtual}`,
+      mes: String(m + 1).padStart(2, '0'),
+      ano: String(anoAtual),
+      mes_nome: nome,
+      periodo_label: `${nome} ${anoAtual}`,
+    })
+  }
+  return { meses, mes_atual: meses[meses.length - 1].aba }
+}
+
 export async function fetchMeses(): Promise<MesesResponse> {
-  const res = await fetch(`${BASE_URL}?format=meses`, { cache: 'no-store' })
-  if (!res.ok) throw new Error(`Apps Script retornou status ${res.status}.`)
-  return res.json()
+  try {
+    const res = await fetch(`${BASE_URL}?format=meses`, { cache: 'no-store' })
+    if (!res.ok) return gerarMesesFallback()
+    const json: unknown = await res.json()
+    // Valida que tem a estrutura esperada
+    if (
+      typeof json === 'object' && json !== null &&
+      'meses' in json && Array.isArray((json as MesesResponse).meses) &&
+      'mes_atual' in json
+    ) {
+      return json as MesesResponse
+    }
+    return gerarMesesFallback()
+  } catch {
+    return gerarMesesFallback()
+  }
 }
