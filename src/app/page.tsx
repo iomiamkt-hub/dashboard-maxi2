@@ -1,7 +1,10 @@
+import { headers } from 'next/headers'
 import { fetchSummary, fetchMeses } from '@/lib/api'
 import Dashboard from '@/components/Dashboard'
 
 export default async function Home() {
+  // Força renderização dinâmica (request-time) para sempre buscar dados frescos
+  await headers()
   if (!process.env.NEXT_PUBLIC_APPS_SCRIPT_URL) {
     return (
       <div className="flex items-center justify-center min-h-screen p-8">
