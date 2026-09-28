@@ -6,13 +6,13 @@ export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
   const url = mes
     ? `${BASE_URL}?format=summary&mes=${mes}`
     : `${BASE_URL}?format=summary`
-  const res = await fetch(url, { next: { revalidate: 300 } })
-  if (!res.ok) throw new Error('Erro ao buscar dados')
+  const res = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Apps Script retornou status ${res.status}.`)
   return res.json()
 }
 
 export async function fetchMeses(): Promise<MesesResponse> {
-  const res = await fetch(`${BASE_URL}?format=meses`, { next: { revalidate: 300 } })
-  if (!res.ok) throw new Error('Erro ao buscar meses')
+  const res = await fetch(`${BASE_URL}?format=meses`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Apps Script retornou status ${res.status}.`)
   return res.json()
 }
