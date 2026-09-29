@@ -48,6 +48,20 @@ const MES_ABREV: Record<string, string> = {
 
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+const ABREV_TO_NUM: Record<string, string> = {
+  JAN:'01',FEV:'02',MAR:'03',ABR:'04',MAI:'05',JUN:'06',
+  JUL:'07',AGO:'08',SET:'09',OUT:'10',NOV:'11',DEZ:'12',
+}
+
+// Converte "SET2026" → "09.2026" (formato que o Apps Script reconhece)
+function abaParaApiMes(aba: string): string {
+  const abrev = aba.slice(0, 3).toUpperCase()
+  const ano = aba.slice(3)
+  const num = ABREV_TO_NUM[abrev]
+  if (num && ano) return `${num}.${ano}`
+  return aba
+}
+
 function abaDoMesAtual(): string {
   const now = new Date()
   const nome = MESES_PT[now.getMonth()]
@@ -192,8 +206,9 @@ function isNovoFormato(json: unknown): json is RawApiResponse {
 // API pública
 // ──────────────────────────────────────────────────────────────
 export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
-  // Sempre passa o mês explicitamente — sem ele, o Apps Script pode retornar mês errado
-  const mesParam = mes ?? abaDoMesAtual()
+  // Converte aba (ex: SET2026) para formato MM.YYYY que o Apps Script reconhece
+  const aba = mes ?? abaDoMesAtual()
+  const mesParam = abaParaApiMes(aba)
   const url = `${BASE_URL}?format=summary&mes=${mesParam}`
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Apps Script retornou status ${res.status}.`)
