@@ -4,12 +4,10 @@ export function formatValue(value: number | string, type: 'money' | 'percent' | 
   if (isNaN(num) || num === 0) return '—'
 
   if (type === 'money') {
-    if (num >= 1_000_000) return `R$${(num / 1_000_000).toFixed(1).replace('.', ',')}M`
-    if (num >= 1_000) return `R$${(num / 1_000).toFixed(1).replace('.', ',')}k`
-    return `R$ ${num.toFixed(0)}`
+    return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
   if (type === 'percent') {
-    return `${(num * 100).toFixed(1)}%`
+    return `${(num * 100).toFixed(2)}%`
   }
   return num.toLocaleString('pt-BR')
 }
