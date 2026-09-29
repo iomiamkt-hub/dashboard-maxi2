@@ -91,7 +91,7 @@ export default function TaxasConversao({ summary }: Props) {
                     ok ? 'text-green-700' : 'text-amber-700'
                   )}
                 >
-                  {taxa.valor.toFixed(1)}%
+                  {taxa.valor.toFixed(2)}%
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-1">Benchmark: ≥ {taxa.benchmark}%</p>

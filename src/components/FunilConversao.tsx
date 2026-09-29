@@ -131,7 +131,7 @@ function ConexaoBadge({ conexao }: { conexao: ConexaoConfig }) {
       ok ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-amber-50 text-amber-700 border-amber-300'
     )}>
       {ok ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      {conexao.label === 'ticket' ? `${conexao.taxa.toFixed(0)}x` : `${conexao.taxa.toFixed(1)}%`}
+      {conexao.label === 'ticket' ? `${conexao.taxa.toFixed(0)}x` : `${conexao.taxa.toFixed(2)}%`}
     </div>
   )
 
@@ -167,7 +167,7 @@ function ModalidadeCard({ titulo, consultas, contratos, taxa, accent, bg, border
         <div className="text-center px-3">
           <p className="text-xs text-gray-400 mb-0.5">Taxa</p>
           <p className={clsx('text-2xl font-bold', accent)}>
-            {consultas > 0 ? `${taxa.toFixed(1)}%` : '—'}
+            {consultas > 0 ? `${taxa.toFixed(2)}%` : '—'}
           </p>
         </div>
         <div className="text-right">
@@ -259,7 +259,7 @@ export default function FunilConversao({ summary }: FunilConversaoProps) {
             </div>
             <p className="text-xs text-gray-400 mb-1">Consulta → Contrato</p>
             <p className="text-3xl font-bold text-purple-700">
-              {m.primeiras_consultas > 0 ? `${taxaGeral.toFixed(1)}%` : '—'}
+              {m.primeiras_consultas > 0 ? `${taxaGeral.toFixed(2)}%` : '—'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {v.total_contratos.toLocaleString('pt-BR')} contratos /{' '}
