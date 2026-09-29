@@ -62,7 +62,7 @@ export async function GET(request: Request) {
         clicaram_no_anuncio: clicaram ?? null,
         // Soma das semanas como o frontend calcula
         soma_semanas: Array.isArray(clicaram?.semanas)
-          ? (clicaram.semanas as (number|null)[]).reduce((a, v) => a + (v ?? 0), 0)
+          ? (clicaram.semanas as (number|null)[]).reduce((a: number, v) => a + (v ?? 0), 0)
           : null,
       })
     } catch (err: unknown) {
