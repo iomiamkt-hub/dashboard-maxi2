@@ -38,23 +38,28 @@ export async function GET(request: Request) {
     }
   }
 
-  // Modo 'raw': mostra a resposta bruta do Apps Script para diagnóstico do setor MARKETING
+  // Modo 'raw': mostra a resposta bruta do Apps Script (com format=summary)
   if (format === 'raw') {
-    const mesParam = mes ?? 'SET2026'
-    const url = `${base}?mes=${mesParam}`
+    const mesParam = mes ?? '09.2026'
+    const url = `${base}?format=summary&mes=${mesParam}`
     try {
       const res = await fetch(url, { cache: 'no-store' })
       const json = await res.json() as Record<string, unknown>
-      // Extrai só o setor MARKETING para não poluir a resposta
       const mesAtual = json.mesAtual as Record<string, unknown> | undefined
       const setores = mesAtual?.setores as Record<string, unknown> | undefined
       const mk = setores?.['MARKETING (JOICE)'] as Record<string, unknown> | undefined
+      const clicaram = mk?.['CLICARAM NO ANÚNCIO'] as Record<string, unknown> | undefined
       return NextResponse.json({
-        mes_param: mesParam,
+        url_chamada: url.replace(base, '[SCRIPT_URL]'),
         tem_mesAtual: !!mesAtual,
+        referencia: json.referencia,
         chaves_setores: setores ? Object.keys(setores) : [],
-        marketing_raw: mk ?? null,
-        clicaram_raw: (mk?.['CLICARAM NO ANÚNCIO'] as unknown) ?? null,
+        chaves_marketing: mk ? Object.keys(mk) : [],
+        clicaram_no_anuncio: clicaram ?? null,
+        // Soma das semanas como o frontend calcula
+        soma_semanas: Array.isArray(clicaram?.semanas)
+          ? (clicaram.semanas as (number|null)[]).reduce((a, v) => a + (v ?? 0), 0)
+          : null,
       })
     } catch (err: unknown) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
