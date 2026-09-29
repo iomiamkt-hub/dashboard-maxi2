@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import type { SummaryResponse, MesDisponivel } from '@/types'
 import { fetchSummary } from '@/lib/api'
 import { formatDate } from '@/lib/format'
@@ -60,14 +61,15 @@ export default function Dashboard({ summary, meses, mesAtual }: Props) {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-              M
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-900 text-lg leading-tight">Maxiplástica</h1>
-              <p className="text-xs text-gray-500">Dashboard de Métricas</p>
-            </div>
+          <div className="flex items-center">
+            <Image
+              src="/logo-maxiplastica.png"
+              alt="Maxiplástica"
+              width={220}
+              height={60}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
           </div>
           <div className="text-xs text-gray-400">
             Atualizado em: {formatDate(summaryAtual.generated_at)}
