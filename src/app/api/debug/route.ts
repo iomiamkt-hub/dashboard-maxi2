@@ -15,9 +15,13 @@ export async function GET(request: Request) {
   if (format === 'transformed') {
     try {
       const summary = await fetchSummary(mes)
+      const somaClicaram = summary.semanas.reduce((a, s) => a + (s.metricas.clicaram_no_anuncio ?? 0), 0)
       return NextResponse.json({
         modo: 'transformed',
         mes_param: mes ?? '(padrão)',
+        clicaram_total: summary.marketing.clicaram_no_anuncio,
+        clicaram_soma_semanas: somaClicaram,
+        fix_ativo: summary.marketing.clicaram_no_anuncio === somaClicaram && somaClicaram > 0,
         marketing: summary.marketing,
         vendas: summary.vendas,
         operacional: summary.operacional,
