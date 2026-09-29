@@ -38,6 +38,29 @@ export async function GET(request: Request) {
     }
   }
 
+  // Modo 'raw': mostra a resposta bruta do Apps Script para diagnóstico do setor MARKETING
+  if (format === 'raw') {
+    const mesParam = mes ?? 'SET2026'
+    const url = `${base}?mes=${mesParam}`
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      const json = await res.json() as Record<string, unknown>
+      // Extrai só o setor MARKETING para não poluir a resposta
+      const mesAtual = json.mesAtual as Record<string, unknown> | undefined
+      const setores = mesAtual?.setores as Record<string, unknown> | undefined
+      const mk = setores?.['MARKETING (JOICE)'] as Record<string, unknown> | undefined
+      return NextResponse.json({
+        mes_param: mesParam,
+        tem_mesAtual: !!mesAtual,
+        chaves_setores: setores ? Object.keys(setores) : [],
+        marketing_raw: mk ?? null,
+        clicaram_raw: (mk?.['CLICARAM NO ANÚNCIO'] as unknown) ?? null,
+      })
+    } catch (err: unknown) {
+      return NextResponse.json({ error: String(err) }, { status: 500 })
+    }
+  }
+
   // Modo padrão: retorna a resposta bruta do Apps Script
   const url = mes ? `${base}?format=${format}&mes=${mes}` : `${base}?format=${format}`
 
