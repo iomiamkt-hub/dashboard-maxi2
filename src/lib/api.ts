@@ -29,7 +29,16 @@ interface RawApiResponse {
 // Helpers
 // ──────────────────────────────────────────────────────────────
 function num(setor: RawSetor, chave: string): number {
-  return setor[chave]?.total ?? 0
+  const metrica = setor[chave]
+  if (!metrica) return 0
+  const total = metrica.total
+  // Se o Apps Script retornar total null (bug da 5ª semana), soma as semanas como fallback
+  if (total !== null && total !== undefined) return total
+  const semanas = metrica.semanas
+  if (semanas && semanas.length > 0) {
+    return semanas.reduce((acc: number, v) => acc + (v ?? 0), 0)
+  }
+  return 0
 }
 function sems(setor: RawSetor, chave: string): (number | null)[] {
   return setor[chave]?.semanas ?? []
