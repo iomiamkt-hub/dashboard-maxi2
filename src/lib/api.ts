@@ -209,6 +209,44 @@ function isNovoFormato(json: unknown): json is RawApiResponse {
   return typeof json === 'object' && json !== null && 'mesAtual' in json
 }
 
+// Formato antigo: quando o Apps Script retorna zeros nos totais mas semanas corretas
+// (bug da 5ª semana vazia), reconstrói os totais somando as semanas.
+function fixarTotaisVazios(s: SummaryResponse): SummaryResponse {
+  const semanas = s.semanas ?? []
+  // Métricas que devem ser somadas (contagens e valores monetários)
+  const SOMAR = new Set([
+    'clicaram_no_anuncio','conversas_iniciadas','primeiras_consultas',
+    'consultas_presenciais','consultas_online',
+    'numero_orcamentos','contratos_online','contratos_presencial','total_contratos',
+    'valor_total_fechado',
+    'pagamento_avista','pagamento_ate6x','pagamento_acima6x',
+    'reserva_tecnica','contratos_prevenda','inadimplencia','adimplencia',
+    'recebiveis_6meses','despesas_fixas',
+    'jornada_paciente','satisfacao_nps','avaliacao_google',
+  ])
+  function fix<T>(section: T): T {
+    const result = { ...(section as object) } as Record<string, unknown>
+    for (const key of Object.keys(result)) {
+      const val = result[key]
+      if (typeof val === 'number' && val === 0 && SOMAR.has(key)) {
+        const soma = semanas.reduce((acc, sem) => {
+          const v = (sem.metricas as unknown as Record<string, number>)[key]
+          return acc + (typeof v === 'number' ? v : 0)
+        }, 0)
+        if (soma > 0) result[key] = soma
+      }
+    }
+    return result as T
+  }
+  return {
+    ...s,
+    marketing: fix(s.marketing),
+    vendas: fix(s.vendas),
+    financeiro: fix(s.financeiro),
+    operacional: fix(s.operacional),
+  }
+}
+
 // ──────────────────────────────────────────────────────────────
 // API pública
 // ──────────────────────────────────────────────────────────────
@@ -223,8 +261,8 @@ export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
 
   if (isNovoFormato(json)) return transformar(json)
 
-  // Formato antigo — retorna diretamente
-  return json as SummaryResponse
+  // Formato antigo — corrige totais zerados somando as semanas (bug da 5ª semana)
+  return fixarTotaisVazios(json as SummaryResponse)
 }
 
 function gerarMesesFallback(): MesesResponse {
