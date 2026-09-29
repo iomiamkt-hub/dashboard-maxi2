@@ -46,6 +46,14 @@ const MES_ABREV: Record<string, string> = {
   Julho:'JUL',Agosto:'AGO',Setembro:'SET',Outubro:'OUT',Novembro:'NOV',Dezembro:'DEZ',
 }
 
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+function abaDoMesAtual(): string {
+  const now = new Date()
+  const nome = MESES_PT[now.getMonth()]
+  return `${MES_ABREV[nome]}${now.getFullYear()}`
+}
+
 // ──────────────────────────────────────────────────────────────
 // Transformador: novo formato → SummaryResponse
 // ──────────────────────────────────────────────────────────────
@@ -184,9 +192,9 @@ function isNovoFormato(json: unknown): json is RawApiResponse {
 // API pública
 // ──────────────────────────────────────────────────────────────
 export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
-  const url = mes
-    ? `${BASE_URL}?format=summary&mes=${mes}`
-    : `${BASE_URL}?format=summary`
+  // Sempre passa o mês explicitamente — sem ele, o Apps Script pode retornar mês errado
+  const mesParam = mes ?? abaDoMesAtual()
+  const url = `${BASE_URL}?format=summary&mes=${mesParam}`
   const res = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Apps Script retornou status ${res.status}.`)
   const json: unknown = await res.json()
@@ -196,8 +204,6 @@ export async function fetchSummary(mes?: string): Promise<SummaryResponse> {
   // Formato antigo — retorna diretamente
   return json as SummaryResponse
 }
-
-const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 function gerarMesesFallback(): MesesResponse {
   const agora = new Date()
