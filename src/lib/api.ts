@@ -209,11 +209,13 @@ function isNovoFormato(json: unknown): json is RawApiResponse {
   return typeof json === 'object' && json !== null && 'mesAtual' in json
 }
 
-// Formato antigo: quando o Apps Script retorna zeros nos totais mas semanas corretas
-// (bug da 5ª semana vazia), reconstrói os totais somando as semanas.
+// Formato antigo: corrige totais quando o Apps Script lê a coluna errada.
+// Dois cenários:
+//   1. Total = 0 mas semanas têm dados → Apps Script não encontrou coluna TOTAL
+//   2. Total > 0 mas total < soma das semanas → Apps Script leu a 5ª semana (coluna H)
+//      como TOTAL em vez da coluna I. Nesse caso o "total" é o valor real da 5ª semana.
 function fixarTotaisVazios(s: SummaryResponse): SummaryResponse {
   const semanas = s.semanas ?? []
-  // Métricas que devem ser somadas (contagens e valores monetários)
   const SOMAR = new Set([
     'clicaram_no_anuncio','conversas_iniciadas','primeiras_consultas',
     'consultas_presenciais','consultas_online',
@@ -224,22 +226,59 @@ function fixarTotaisVazios(s: SummaryResponse): SummaryResponse {
     'recebiveis_6meses','despesas_fixas',
     'jornada_paciente','satisfacao_nps','avaliacao_google',
   ])
+
+  function somaChave(key: string): number {
+    return semanas.reduce((acc, sem) => {
+      const v = (sem.metricas as unknown as Record<string, number>)[key]
+      return acc + (typeof v === 'number' ? v : 0)
+    }, 0)
+  }
+
+  // Detecta campos onde o "total" é na verdade a 5ª semana
+  const metricas5 = {} as Record<string, number>
+  for (const secao of ([s.marketing, s.vendas, s.financeiro, s.operacional] as unknown[]) as Array<Record<string, unknown>>) {
+    for (const key of Object.keys(secao)) {
+      if (!SOMAR.has(key)) continue
+      const val = secao[key]
+      if (typeof val !== 'number' || val <= 0) continue
+      const soma4 = somaChave(key)
+      if (soma4 > 0 && val < soma4) metricas5[key] = val
+    }
+  }
+
+  // Adiciona a 5ª semana ao array se detectada
+  let semanasCorrigidas = semanas
+  if (Object.keys(metricas5).length > 0 && semanas.length === 4) {
+    semanasCorrigidas = [...semanas, {
+      semana: 5,
+      label: '5ª Semana',
+      periodo_label: `5ª Sem — ${s.periodo_label}`,
+      metricas: metricas5 as unknown as Semana['metricas'],
+    }]
+  }
+
   function fix<T>(section: T): T {
     const result = { ...(section as object) } as Record<string, unknown>
     for (const key of Object.keys(result)) {
+      if (!SOMAR.has(key)) continue
       const val = result[key]
-      if (typeof val === 'number' && val === 0 && SOMAR.has(key)) {
-        const soma = semanas.reduce((acc, sem) => {
-          const v = (sem.metricas as unknown as Record<string, number>)[key]
-          return acc + (typeof v === 'number' ? v : 0)
-        }, 0)
-        if (soma > 0) result[key] = soma
+      if (typeof val !== 'number') continue
+      const soma4 = somaChave(key)
+      if (val === 0 && soma4 > 0) {
+        // Total zerado → soma das semanas + 5ª semana se houver
+        result[key] = soma4 + (metricas5[key] ?? 0)
+      } else if (val > 0 && soma4 > 0 && val < soma4) {
+        // Total é o valor da 5ª semana → total real = soma4 + 5ª semana
+        result[key] = soma4 + val
       }
     }
     return result as T
   }
+
   return {
     ...s,
+    semanas_com_dados: semanasCorrigidas.length,
+    semanas: semanasCorrigidas,
     marketing: fix(s.marketing),
     vendas: fix(s.vendas),
     financeiro: fix(s.financeiro),

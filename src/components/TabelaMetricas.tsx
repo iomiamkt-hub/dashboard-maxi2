@@ -31,12 +31,13 @@ const META_CONSULTAS = 150
 const META_CONTRATOS = 50
 const META_FATURAMENTO = 1_000_000
 
-// Metallic week column colors — cohesive indigo→blue→sky→teal family
+// Metallic week column colors — suporta 4 ou 5 semanas
 const SEM_COLORS = [
-  { bg: '#4f46e5', light: '#eef2ff', border: '#c7d2fe' }, // indigo
-  { bg: '#2563eb', light: '#eff6ff', border: '#bfdbfe' }, // blue
-  { bg: '#0284c7', light: '#f0f9ff', border: '#bae6fd' }, // sky
-  { bg: '#0891b2', light: '#ecfeff', border: '#a5f3fc' }, // cyan
+  { bg: '#4f46e5', light: '#eef2ff', border: '#c7d2fe' }, // indigo  (1ª)
+  { bg: '#2563eb', light: '#eff6ff', border: '#bfdbfe' }, // blue    (2ª)
+  { bg: '#0284c7', light: '#f0f9ff', border: '#bae6fd' }, // sky     (3ª)
+  { bg: '#0891b2', light: '#ecfeff', border: '#a5f3fc' }, // cyan    (4ª)
+  { bg: '#0f766e', light: '#f0fdfa', border: '#99f6e4' }, // teal    (5ª)
 ]
 
 const METRICAS: MetricaConfig[] = [
@@ -232,8 +233,9 @@ function LinhaMelhorSemana({ semanas, keys, colCount }: {
 export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
   const semanas = summary.semanas ?? []
   const semanasAnterior = summaryMesAnterior?.semanas ?? []
-  const semanasExibidas = Array.from({ length: 4 }, (_, i) => semanas[i] ?? null)
-  const TOTAL_COLS = 6
+  const nSemanas = Math.max(4, semanas.length) // mínimo 4; exibe 5ª quando existir
+  const semanasExibidas = Array.from({ length: nSemanas }, (_, i) => semanas[i] ?? null)
+  const TOTAL_COLS = nSemanas + 2
 
   const semanaAtualIdx = (() => {
     for (let i = semanasExibidas.length - 1; i >= 0; i--) { if (semanasExibidas[i] !== null) return i }
