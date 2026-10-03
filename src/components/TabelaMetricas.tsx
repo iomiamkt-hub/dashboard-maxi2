@@ -244,8 +244,6 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
 
   const mesAnt = summaryMesAnterior ? mesAbrev(summaryMesAnterior) : 'ant'
 
-  // Última semana disponível do mês anterior (para comparar com a 1ª semana do mês atual)
-  const ultimaSemAnt = [...semanasAnterior].reverse().find(s => s != null) ?? null
 
   function getMaxValorSemanas(key: string): number {
     return Math.max(0, ...semanasExibidas.map((s) => (s ? toNum(getFromSemana(s, key)) : 0)))
@@ -295,20 +293,9 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
           const isAtual = i === semanaAtualIdx
           const col = SEM_COLORS[i]
 
-          // Semana anterior no mesmo mês (i-1) — só para Sem 2, 3, 4
-          const semAnteriorMes = i > 0 ? semanasExibidas[i - 1] : null
-          const valAnteriorMes = semAnteriorMes ? toNum(getFromSemana(semAnteriorMes, metrica.key)) : 0
-
-          // Para Sem 1: compara com a ÚLTIMA semana do mês anterior
-          const valUltimaSemAnt = ultimaSemAnt && i === 0
-            ? toNum(getFromSemana(ultimaSemAnt, metrica.key))
-            : 0
-
-          // Mesma semana do mês anterior (todas as semanas)
+          // Mesma semana do mês anterior (único comparativo exibido)
           const semMesPassado = semanasAnterior[i] ?? null
           const valMesPassado = semMesPassado ? toNum(getFromSemana(semMesPassado, metrica.key)) : 0
-
-          // Rótulos
           const labelMesPassado = `vs ${i + 1}ª/${mesAnt}`
 
           // Leve heatmap no fundo
@@ -338,20 +325,8 @@ export default function TabelaMetricas({ summary, summaryMesAnterior }: Props) {
                     }
                   </span>
                 )}
-                {semanaExiste && !metrica.special && numVal > 0 && (
-                  <>
-                    {/* Chip 1: vs sem/ant — semana imediatamente anterior (mesmo mês ou última do mês ant) */}
-                    {i === 0 && ultimaSemAnt && (
-                      <Chip atual={numVal} anterior={valUltimaSemAnt} label="vs sem/ant" positiveIsGood={!metrica.negativa} />
-                    )}
-                    {i > 0 && (
-                      <Chip atual={numVal} anterior={valAnteriorMes} label="vs sem/ant" positiveIsGood={!metrica.negativa} />
-                    )}
-                    {/* Chip 2: vs Xª/mes — mesma semana do mês anterior */}
-                    {summaryMesAnterior && valMesPassado > 0 && (
-                      <Chip atual={numVal} anterior={valMesPassado} label={labelMesPassado} positiveIsGood={!metrica.negativa} />
-                    )}
-                  </>
+                {semanaExiste && !metrica.special && numVal > 0 && summaryMesAnterior && valMesPassado > 0 && (
+                  <Chip atual={numVal} anterior={valMesPassado} label={labelMesPassado} positiveIsGood={!metrica.negativa} />
                 )}
               </div>
             </td>
